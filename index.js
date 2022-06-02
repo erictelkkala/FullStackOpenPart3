@@ -60,6 +60,22 @@ app.get('/info', (request, response) => {
   response.send(info)
 })
 
+// Delete a person with the given id from the list
+app.delete('/api/persons/:id', (request, response) => {
+  // Set the id variable to the request parameter
+  const id = Number(request.params.id)
+  // Find the person with the given id
+  const person = persons.find(person => person.id === id)
+  // If the person is found, remove the person from the list
+  if (person) {
+    persons = persons.filter(person => person.id !== id)
+    response.status(204).end()
+    // If the person is not found, return 404
+  } else {
+    response.status(404).end()
+  }
+})
+
 const PORT = 3001
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`)

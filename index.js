@@ -1,6 +1,9 @@
 const express = require('express')
 const app = express()
 
+// JSON parser
+app.use(express.json())
+
 let persons = [
     { 
         "id": 1,
@@ -75,6 +78,42 @@ app.delete('/api/persons/:id', (request, response) => {
     response.status(404).end()
   }
 })
+
+// Add a new person to the list
+app.post('/api/persons', (request, response) => {
+  // Get the body of the request
+  const body = request.body
+  // If the name and number are not given, return 400
+  if (!body.name || !body.number) {
+    return response.status(400).json({
+      error: 'name or number missing'
+    })
+  }
+  // If the name is already in the list, return 400
+  const duplicate = persons.find(person => person.name === body.name)
+  if (duplicate) {
+    return response.status(400).json({
+      error: 'name must be unique'
+    })
+  }
+  // If the number is already in the list, return 400
+  const duplicateNumber = persons.find(person => person.number === body.number)
+  if (duplicateNumber) {
+    return response.status(400).json({
+      error: 'number must be unique'
+    })
+  }
+  // If the name and number are given, add the person to the list
+  const person = {
+    // Generate a random id
+    id: Math.floor(Math.random() * 1000),
+    name: body.name,
+    number: body.number
+  }
+  persons = persons.concat(person)
+  response.json(person)
+})
+
 
 const PORT = 3001
 app.listen(PORT, () => {

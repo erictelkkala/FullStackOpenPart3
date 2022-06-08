@@ -4,6 +4,28 @@ const app = express()
 // JSON parser
 app.use(express.json())
 
+// Morgan
+const morgan = require('morgan')
+app.use(morgan('tiny', {
+  // Skip the tine format if the request is POST
+  skip: function (req, res) {
+    return req.method === 'POST'
+    }
+}))
+
+// Morgan token for POST requests
+morgan.token('body', (req, res) => {
+  return JSON.stringify(req.body)
+})
+
+// Log the body of POST requests
+app.use(morgan(':method :url :status :res[content-length] - :response-time ms :body', {
+  // Skip if the request is not POST
+  skip: function (req, res) {
+    return req.method !== 'POST'
+  }
+}))
+
 let persons = [
     { 
         "id": 1,

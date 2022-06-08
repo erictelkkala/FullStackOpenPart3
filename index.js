@@ -4,6 +4,10 @@ const app = express()
 // JSON parser
 app.use(express.json())
 
+// CORS
+const cors = require('cors')
+app.use(cors())
+
 // Morgan
 const morgan = require('morgan')
 app.use(morgan('tiny', {
@@ -137,7 +141,11 @@ app.post('/api/persons', (request, response) => {
 })
 
 
-const PORT = 3001
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`)
+let port = process.env.PORT;
+if (port == null || port == "") {
+  port = 8000;
+}
+
+app.listen(port, () => {
+  console.log(`Server running on port ${port}`)
 })

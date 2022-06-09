@@ -4,6 +4,9 @@ const app = express()
 // JSON parser
 app.use(express.json())
 
+// Static files
+app.use(express.static('build'))
+
 // CORS
 const cors = require('cors')
 app.use(cors())

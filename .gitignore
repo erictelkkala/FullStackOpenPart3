@@ -128,3 +128,7 @@ dist
 
 # REST API files
 .rest
+
+# Configuration folders
+.idea
+.vscode

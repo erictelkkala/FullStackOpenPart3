@@ -83,14 +83,20 @@ app.get("/api/persons/:id", (request, response, next) => {
 });
 
 // Get the length of the list of persons and the current date
-app.get("/info", (request, response) => {
+app.get("/info", (request, response, next) => {
   // Get the current date
   const date = new Date();
-  // Get the length of the list of persons
-  // Also display the date variable under the length
-  const info = `<p>Phonebook has info for ${persons.length} people</p>
-  <p>${date}</p>`;
-  response.send(info);
+
+  // Find the number of persons in the database
+  Phonebook.countDocuments({}, function (err, count) {
+    if (err) {
+      next(err);
+    }
+
+    // Send the number of persons and the current date in JSON format as the response
+    response.send(`<p>Phonebook has info for ${count} people</p>
+    <p>${date}</p>`);
+  });
 });
 
 // Delete a person with the given id from the list
@@ -125,23 +131,6 @@ app.post("/api/persons", (request, response) => {
     });
   }
 
-  // DUPLICATE CHECK
-
-  // // If the name is already in the list, return 400
-  // const duplicateName = Phonebook.find({ name: body.name });
-  // if (duplicateName) {
-  //   return response.status(400).json({
-  //     error: "name must be unique",
-  //   });
-  // }
-  // // If the number is already in the list, return 400
-  // const duplicateNumber = Phonebook.find({ number: body.number });
-  // if (duplicateNumber) {
-  //   return response.status(400).json({
-  //     error: "number must be unique",
-  //   });
-  // }
-
   // If the name and number are given, add the person to the list
   const person = new Phonebook({
     name: body.name,
@@ -153,9 +142,40 @@ app.post("/api/persons", (request, response) => {
   });
 });
 
+// Modify a person with the given id
+app.put("/api/persons/:id", (request, response, next) => {
+  // Set the id variable to the request parameter
+  const id = String(request.params.id);
+  // Get the body of the request
+  const body = request.body;
+  // If the name and number are not given, return 400
+  if (!body.name || !body.number) {
+    return response.status(400).json({
+      error: "name or number missing",
+    });
+  }
+
+  // If the name and number are given, modify the person with the given id
+  Phonebook.findByIdAndUpdate(id, {
+    name: body.name,
+    number: body.number,
+  })
+    .then(
+      (person) => {
+        // If the person is found, return the person in JSON format
+        if (person) {
+          response.json(person);
+        }
+      }
+      // If an error occurs, pass it to the error handler
+    )
+    .catch((error) => next(error));
+});
+
 // Error handling
 app.use(errorHandler);
 
+// Configure the port to look for the environment variable PORT, otherwise use port 3001
 let port = process.env.PORT;
 if (port == null || port === "") {
   port = 3001;

@@ -2,18 +2,36 @@ const express = require("express");
 const app = express();
 const Phonebook = require("./models/mongo");
 
-// JSON parser
-app.use(express.json());
-
-// Static files
-app.use(express.static("build"));
-
 // CORS
+
 const cors = require("cors");
-app.use(cors());
 
 // Morgan
 const morgan = require("morgan");
+
+// Morgan token for POST requests
+morgan.token("body", (req, res) => {
+  return JSON.stringify(req.body);
+});
+
+// Error handling
+const errorHandler = (error, request, response, next) => {
+  console.error(error.message + "Middleware");
+
+  if (error.name === "CastError") {
+    response.status(400).send("malformed ID");
+  }
+
+  next(error);
+};
+
+// Static files
+app.use(express.static("build"));
+// JSON parser
+app.use(express.json());
+// CORS
+app.use(cors());
+// Morgan
 app.use(
   morgan("tiny", {
     // Skip the tine format if the request is POST
@@ -22,12 +40,6 @@ app.use(
     },
   })
 );
-
-// Morgan token for POST requests
-morgan.token("body", (req, res) => {
-  return JSON.stringify(req.body);
-});
-
 // Log the body of POST requests
 app.use(
   morgan(
@@ -54,7 +66,7 @@ app.get("/api/persons", (request, response) => {
 });
 
 // Get the person with the given id in JSON format
-app.get("/api/persons/:id", (request, response) => {
+app.get("/api/persons/:id", (request, response, next) => {
   // Set the id variable to the request parameter
   const id = String(request.params.id);
   // Find the person with the given id
@@ -64,11 +76,10 @@ app.get("/api/persons/:id", (request, response) => {
       // If the person is found, return the person in JSON format
       if (person) {
         response.json(person);
-        // If the person is not found, return 404
-      } else {
-        response.status(404).end();
       }
-    });
+    })
+    // If an error occurs, pass it to the error handler
+    .catch((error) => next(error));
 });
 
 // Get the length of the list of persons and the current date
@@ -83,19 +94,24 @@ app.get("/info", (request, response) => {
 });
 
 // Delete a person with the given id from the list
-app.delete("/api/persons/:id", (request, response) => {
+app.delete("/api/persons/:id", (request, response, next) => {
   // Set the id variable to the request parameter
   const id = String(request.params.id);
   // Find the person with the given id
-  const person = Phonebook.findById(id).exec();
-  // If the person is found, remove the person from the list
-  if (person) {
-    Phonebook.findByIdAndRemove(id).exec();
-    response.status(204).end();
-    // If the person is not found, return 404
-  } else {
-    response.status(404).end();
-  }
+  Phonebook.findById(id)
+    .exec()
+    .then((person) => {
+      // If the person is found, remove the person from the list
+      if (person) {
+        Phonebook.findByIdAndRemove(id).exec();
+        response.status(204).end();
+        // If the person is not found, return 404
+      } else {
+        response.status(404).end();
+      }
+    })
+    // If an error occurs, pass it to the error handler
+    .catch((error) => next(error));
 });
 
 // Add a new person to the list
@@ -136,6 +152,9 @@ app.post("/api/persons", (request, response) => {
     response.json(savedPerson);
   });
 });
+
+// Error handling
+app.use(errorHandler);
 
 let port = process.env.PORT;
 if (port == null || port === "") {

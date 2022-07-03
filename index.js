@@ -3,7 +3,6 @@ const app = express();
 const Phonebook = require("./models/mongo");
 
 // CORS
-
 const cors = require("cors");
 
 // Morgan
@@ -14,23 +13,23 @@ morgan.token("body", (req, res) => {
   return JSON.stringify(req.body);
 });
 
-// Error handling
-const errorHandler = (error, request, response, next) => {
-  console.error(error.message + "Middleware");
-
-  if (error.name === "CastError") {
-    response.status(400).send("malformed ID");
-  }
-
-  next(error);
-};
-
 // Static files
 app.use(express.static("build"));
 // JSON parser
 app.use(express.json());
 // CORS
 app.use(cors());
+
+const logger = (request, response, next) => {
+  console.log("Method:", request.method);
+  console.log("Path:  ", request.path);
+  console.log("Body:  ", request.body);
+  console.log("---");
+  next();
+};
+
+app.use(logger);
+
 // Morgan
 app.use(
   morgan("tiny", {
@@ -60,9 +59,13 @@ app.get("/", (request, response) => {
 
 // Get the list of persons in JSON format
 app.get("/api/persons", (request, response) => {
-  Phonebook.find({}).then((persons) => {
-    response.json(persons);
-  });
+  Phonebook.find({})
+    .then((persons) => {
+      response.json(persons);
+    })
+    .catch((error) => {
+      response.status(400).send(error);
+    });
 });
 
 // Get the person with the given id in JSON format
@@ -92,10 +95,13 @@ app.get("/info", (request, response, next) => {
     if (err) {
       next(err);
     }
-
-    // Send the number of persons and the current date in JSON format as the response
-    response.send(`<p>Phonebook has info for ${count} people</p>
+    try {
+      // Send the number of persons and the current date in JSON format as the response
+      response.send(`<p>Phonebook has info for ${count} people</p>
     <p>${date}</p>`);
+    } catch (error) {
+      next(error);
+    }
   });
 });
 
@@ -137,9 +143,14 @@ app.post("/api/persons", (request, response) => {
     number: body.number,
   });
 
-  person.save().then((savedPerson) => {
-    response.json(savedPerson);
-  });
+  person
+    .save()
+    .then((savedPerson) => {
+      response.json(savedPerson);
+    })
+    .catch((error) => {
+      response.status(400).send(error);
+    });
 });
 
 // Modify a person with the given id
@@ -155,16 +166,23 @@ app.put("/api/persons/:id", (request, response, next) => {
     });
   }
 
+  // Options for validation update function
+  const opts = { runValidators: true, context: "query" };
+
   // If the name and number are given, modify the person with the given id
-  Phonebook.findByIdAndUpdate(id, {
-    name: body.name,
-    number: body.number,
-  })
+  Phonebook.findByIdAndUpdate(
+    id,
+    {
+      name: body.name,
+      number: body.number,
+    },
+    opts
+  )
     .then(
       (person) => {
         // If the person is found, return the person in JSON format
         if (person) {
-          response.json(person);
+          response.json(person.toJSON());
         }
       }
       // If an error occurs, pass it to the error handler
@@ -172,7 +190,26 @@ app.put("/api/persons/:id", (request, response, next) => {
     .catch((error) => next(error));
 });
 
+// Unknown route
+const unknownEndpoint = (request, response) => {
+  response.status(404).send({ error: "unknown endpoint" });
+};
+
+app.use(unknownEndpoint);
+
 // Error handling
+const errorHandler = (error, request, response, next) => {
+  console.error("Mongoose error: " + error.message);
+
+  if (error.name === "CastError") {
+    return response.status(400).send("malformed ID");
+  } else if (error.name === "ValidationError") {
+    return response.status(400).json({ error: error.message });
+  }
+
+  next(error);
+};
+
 app.use(errorHandler);
 
 // Configure the port to look for the environment variable PORT, otherwise use port 3001

@@ -17,9 +17,26 @@ mongoose
 
 // SCHEMA
 const phonebookSchema = new mongoose.Schema({
-  name: String,
-  number: String,
+  name: {
+    type: String,
+    minlength: 3,
+    required: [true, "Name is required"],
+  },
+  number: {
+    type: String,
+    required: [true, "Phone number is required"],
+  },
 });
+
+// Number validator
+const numberValidator = (v) => {
+  return /[0-9]{1,3}-[0-9]{6,10}/.test(v);
+};
+
+// Apply the validator to the phone number field
+phonebookSchema
+  .path("number")
+  .validate(numberValidator, "`{VALUE}` is an invalid phone number");
 
 // Remove the id and version fields from the schema
 phonebookSchema.set("toJSON", {
